@@ -108,6 +108,7 @@ The `[values]` section allows you to alter timings in sys-clk, you should not ne
 |**power_log_interval_ms**| Defines how often sys-clk logs power usage, in milliseconds (`0` to disable)  | 0 ms    |
 |**csv_write_interval_ms**| Defines how often sys-clk writes to the CSV, in milliseconds (`0` to disable) | 0 ms    |
 |**poll_interval_ms**     | Defines how fast sys-clk checks and applies profiles, in milliseconds         | 300 ms  |
+|**override_boost_clk**   | Defines whether sys-clk should override boost mode clocks (`1` to enable)     | 0 (false) |
 
 
 ## Capping

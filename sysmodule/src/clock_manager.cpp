@@ -23,6 +23,7 @@ ClockManager::ClockManager()
     this->context->applicationId = 0;
     this->context->profile = SysClkProfile_Handheld;
     this->context->enabled = false;
+    this->context->boostModeActive = false;
     for(unsigned int module = 0; module < SysClkModule_EnumMax; module++)
     {
         this->context->freqs[module] = 0;
@@ -191,15 +192,20 @@ void ClockManager::Tick()
 
                 if (nearestHz != this->context->freqs[module] && this->context->enabled)
                 {
-                    FileUtils::LogLine(
-                        "[mgr] %s clock set : %u.%u MHz (target = %u.%u MHz)",
+                    if (this->context->boostModeActive && module != SysClkModule_MEM)
+                    {
+                        FileUtils::LogLine("[mgr] %s clock not set (Boost mode active)", Board::GetModuleName((SysClkModule)module, true));
+                    }
+                    else
+                    {
+                        FileUtils::LogLine(
+                        "[mgr] %s clock set : %u.%u Mhz",
                         Board::GetModuleName((SysClkModule)module, true),
                         nearestHz/1000000, nearestHz/100000 - nearestHz/1000000*10,
-                        targetHz/1000000, targetHz/100000 - targetHz/1000000*10
-                    );
-
-                    Board::SetHz((SysClkModule)module, nearestHz);
-                    this->context->freqs[module] = nearestHz;
+                        targetHz/1000000, targetHz/100000 - targetHz/1000000*10);
+                        Board::SetHz((SysClkModule)module, nearestHz);
+                        this->context->freqs[module] = nearestHz;
+                    }                    
                 }
             }
         }
@@ -240,9 +246,10 @@ bool ClockManager::RefreshContext()
     }
 
     // restore clocks to stock values on app or profile change
-    if(hasChanged)
+    if (hasChanged)
     {
         Board::ResetToStock();
+        this->context->boostModeActive = false;
         this->WaitForNextTick();
     }
 
@@ -270,6 +277,16 @@ bool ClockManager::RefreshContext()
             }
             this->context->overrideFreqs[module] = hz;
             hasChanged = true;
+        }
+    }
+    
+    if (!this->config->GetConfigValue(SysClkConfigValue_OverrideBoostClocks) && hasChanged)
+    {
+        bool boostClocks = this->context->freqs[SysClkModule_CPU] == SYSCLK_CPU_BOOST_HZ && this->context->freqs[SysClkModule_GPU] == SYSCLK_GPU_BOOST_HZ;
+        if (boostClocks != this->context->boostModeActive)
+        {
+            FileUtils::LogLine("[mgr] System has %s Boost mode", boostClocks ? "entered" : "exited");
+            this->context->boostModeActive = boostClocks;
         }
     }
 
